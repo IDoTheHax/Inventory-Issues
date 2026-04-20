@@ -9,6 +9,8 @@ public class SentientComponentImpl implements SentientComponent {
     private int mood = 50; // Starts neutral
     private int cooldown = 200; // 10 seconds before first action
     private final PlayerEntity provider;
+    private String hungerItem = null;
+    private int hungerTimer = 0;
 
     public SentientComponentImpl(PlayerEntity provider) {
         this.provider = provider;
@@ -40,19 +42,44 @@ public class SentientComponentImpl implements SentientComponent {
         if (this.cooldown > 0) this.cooldown--;
     }
 
-    // Save data when logging out
+    // Add these methods
+    @Override
+    public String getHungerItem() { return this.hungerItem; }
+
+    @Override
+    public void setHungerItem(String itemId) {
+        this.hungerItem = itemId;
+        ModComponents.SENTIENT_DATA.sync(this.provider);
+    }
+
+    @Override
+    public int getHungerTimer() { return this.hungerTimer; }
+
+    @Override
+    public void setHungerTimer(int ticks) { this.hungerTimer = ticks; }
+
+    @Override
+    public void decrementHungerTimer() {
+        if (this.hungerTimer > 0) this.hungerTimer--;
+    }
+
+    // Update readFromNbt
     @Override
     public void readFromNbt(NbtCompound tag) {
         if (tag.contains("SentientMood")) {
             this.mood = tag.getInt("SentientMood");
             this.cooldown = tag.getInt("SentientCooldown");
+            this.hungerItem = tag.getString("HungerItem");
+            this.hungerTimer = tag.getInt("HungerTimer");
         }
     }
 
-    // Load data when logging in
+    // Update writeToNbt
     @Override
     public void writeToNbt(NbtCompound tag) {
         tag.putInt("SentientMood", this.mood);
         tag.putInt("SentientCooldown", this.cooldown);
+        tag.putString("HungerItem", this.hungerItem);
+        tag.putInt("HungerTimer", this.hungerTimer);
     }
 }

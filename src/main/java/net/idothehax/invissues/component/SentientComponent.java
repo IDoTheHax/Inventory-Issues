@@ -11,4 +11,11 @@ public interface SentientComponent extends Component, AutoSyncedComponent {
     int getCooldown();
     void setCooldown(int ticks);
     void decrementCooldown();
+
+    String getHungerItem();
+    void setHungerItem(String itemId);
+
+    int getHungerTimer();
+    void setHungerTimer(int ticks);
+    void decrementHungerTimer();
 }

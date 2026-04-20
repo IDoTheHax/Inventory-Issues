@@ -1,5 +1,6 @@
 package net.idothehax.invissues;
 
+import net.idothehax.invissues.registry.ModComponents;
 import net.minecraft.item.ItemStack;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.entity.player.PlayerInventory;
@@ -22,11 +23,15 @@ public class ActionDispatcher {
             }
         } else if (mood <= 70) {
             // --- ANNOYED / NEUTRAL ---
-            if (roll < 50) {
-                executeScramble(player, false); // Gentle scramble (few swaps)
+            if (roll < 40) {
+                executeScramble(player, false); // Gentle scramble
+            } else if (roll < 80) {
+                // Check if it's already hungry to prevent spamming the message
+                if (ModComponents.SENTIENT_DATA.get(player).getHungerTimer() <= 0) {
+                    HungerManager.triggerHunger(player);
+                }
             } else {
                 Invissues.LOGGER.info("Inventory grumbled but did nothing.");
-                // TODO: Add "Hunger" request or Cursed Slots here later
             }
         } else {
             // --- HIGH TRUST (Helpful) ---
