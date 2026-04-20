@@ -4,7 +4,7 @@
   "version": "${version}",
   "name": "Inventory Issues",
   "description": "Makes your inventory sentient, petty and mildly destructive. Good luck.",
-  "authors": [],
+  "authors": ["IDoTheHax"],
   "contact": {},
   "license": "All-Rights-Reserved",
   "icon": "assets/invissues/icon.png",
@@ -15,6 +15,14 @@
     ],
     "main": [
       "net.idothehax.invissues.Invissues"
+    ],
+    "cardinal-components-entity": [
+      "net.idothehax.invissues.registry.ModComponents"
+    ]
+  },
+  "custom": {
+    "cardinal-components": [
+      "invissues:sentient_data"
     ]
   },
   "mixins": [
