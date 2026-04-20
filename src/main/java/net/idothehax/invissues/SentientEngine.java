@@ -43,6 +43,10 @@ public class SentientEngine {
                     }
                 }
 
+                if (brain.getMood() < 60 && player.getRandom().nextFloat() < 0.01f) { // ~1% chance per tick while annoyed
+                    ActionDispatcher.executePhantomItem(player);
+                }
+
                 // Time to act! Reset timer (random interval between 10 and 20 seconds)
                 int newTimer = 200 + player.getRandom().nextInt(200);
                 brain.setCooldown(newTimer);

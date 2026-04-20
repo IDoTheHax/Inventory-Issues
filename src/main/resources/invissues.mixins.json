@@ -4,6 +4,7 @@
   "package": "net.idothehax.invissues.mixin",
   "compatibilityLevel": "JAVA_17",
   "mixins": [
+    "BlockInteractionMixin",
     "CraftingMixin",
     "PlayerMoodMixin"
   ],

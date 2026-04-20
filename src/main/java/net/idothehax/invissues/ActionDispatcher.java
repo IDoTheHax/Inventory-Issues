@@ -3,12 +3,14 @@ package net.idothehax.invissues;
 import net.idothehax.invissues.registry.ModComponents;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
+import net.minecraft.screen.*;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.sound.SoundCategory;
 import net.minecraft.sound.SoundEvents;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
+import net.minecraft.util.math.BlockPos;
 
 public class ActionDispatcher {
 
@@ -201,5 +203,31 @@ public class ActionDispatcher {
 
             Invissues.LOGGER.info("Gaslighting {} with fake items in slot {}", player.getName().getString(), screenSlot);
         }
+    }
+
+    public static void executeInterfaceRoulette(ServerPlayerEntity player, BlockPos pos) {
+        int roll = player.getRandom().nextInt(3);
+
+        // We play a "glitch" sound to signal the inventory is messing with them
+        player.playSound(SoundEvents.BLOCK_NOTE_BLOCK_BIT.value(), SoundCategory.PLAYERS, 1.0f, 0.5f);
+
+        switch (roll) {
+            case 0 -> // Force open a Crafting Table screen even if they clicked a Chest
+                    player.openHandledScreen(new SimpleNamedScreenHandlerFactory((syncId, inv, p) ->
+                            new CraftingScreenHandler(syncId, inv, ScreenHandlerContext.create(player.getWorld(), pos)),
+                            Text.literal("Inventory's Crafting Table").formatted(Formatting.DARK_PURPLE)));
+
+            case 1 -> // Force open their own Ender Chest
+                    player.openHandledScreen(new SimpleNamedScreenHandlerFactory((syncId, inv, p) ->
+                            GenericContainerScreenHandler.createGeneric9x3(syncId, inv, player.getEnderChestInventory()),
+                            Text.literal("Inventory's Secret Stash")));
+
+            case 2 -> // Force open a Beacon screen (confusing because it has no effects)
+                    player.openHandledScreen(new SimpleNamedScreenHandlerFactory((syncId, inv, p) ->
+                            new BeaconScreenHandler(syncId, inv),
+                            Text.literal("???")));
+        }
+
+        player.sendMessage(Text.literal("The inventory didn't want you to open that.").formatted(Formatting.ITALIC, Formatting.GRAY), true);
     }
 }
