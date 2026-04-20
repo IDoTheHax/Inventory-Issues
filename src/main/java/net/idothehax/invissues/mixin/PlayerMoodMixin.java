@@ -1,6 +1,8 @@
 package net.idothehax.invissues.mixin;
 
+import net.idothehax.invissues.ActionDispatcher;
 import net.idothehax.invissues.MoodManager;
+import net.idothehax.invissues.registry.ModComponents;
 import net.minecraft.entity.damage.DamageSource;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.ItemStack;
@@ -18,8 +20,19 @@ public class PlayerMoodMixin {
     @Inject(method = "applyDamage", at = @At("HEAD"))
     private void onTakeDamage(DamageSource source, float amount, CallbackInfo ci) {
         PlayerEntity player = (PlayerEntity) (Object) this;
+
         if (player instanceof ServerPlayerEntity serverPlayer) {
+            // 1. Regular Mood Drop logic
             MoodManager.onDamaged(serverPlayer, source, amount);
+
+            // 2. THE SABOTAGE (Option C)
+            // Check if mood is low and health is critical (< 3 hearts)
+            if (serverPlayer.getHealth() < 6.0f && ModComponents.SENTIENT_DATA.get(serverPlayer).getMood() < 40) {
+                // 50% chance to sabotage when you're already struggling
+                if (serverPlayer.getRandom().nextFloat() < 0.5f) {
+                    ActionDispatcher.executeLowHealthSabotage(serverPlayer);
+                }
+            }
         }
     }
 

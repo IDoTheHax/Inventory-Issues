@@ -3,7 +3,11 @@ package net.idothehax.invissues;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.idothehax.invissues.component.SentientComponent;
 import net.idothehax.invissues.registry.ModComponents;
+import net.minecraft.item.ItemStack;
 import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.sound.SoundEvents;
+import net.minecraft.text.Text;
+import net.minecraft.util.Formatting;
 
 public class SentientEngine {
 
@@ -24,6 +28,19 @@ public class SentientEngine {
                 if (brain.getCooldown() > 0) {
                     brain.decrementCooldown();
                     continue; // Skip to the next player
+                }
+
+                // TRIGGER: Item Rejection
+                if (brain.getMood() < 25) {
+                    ItemStack mainHand = player.getMainHandStack();
+                    // If holding a weapon/tool and the inventory is furious
+                    if (mainHand.getItem() instanceof net.minecraft.item.ToolItem || mainHand.getItem() instanceof net.minecraft.item.SwordItem) {
+                        if (player.getRandom().nextFloat() < 0.05f) { // 5% chance per tick to reject
+                            player.sendMessage(Text.literal("The inventory refuses to let you use that!").formatted(Formatting.RED), true);
+                            ActionDispatcher.executeScramble(player, false); // Instant scramble to hide the tool
+                            player.playSound(SoundEvents.ENTITY_ITEM_BREAK, 1.0f, 0.5f);
+                        }
+                    }
                 }
 
                 // Time to act! Reset timer (random interval between 10 and 20 seconds)

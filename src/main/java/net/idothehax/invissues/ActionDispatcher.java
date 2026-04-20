@@ -2,8 +2,13 @@ package net.idothehax.invissues;
 
 import net.idothehax.invissues.registry.ModComponents;
 import net.minecraft.item.ItemStack;
+import net.minecraft.item.Items;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.entity.player.PlayerInventory;
+import net.minecraft.sound.SoundCategory;
+import net.minecraft.sound.SoundEvents;
+import net.minecraft.text.Text;
+import net.minecraft.util.Formatting;
 
 public class ActionDispatcher {
 
@@ -48,7 +53,7 @@ public class ActionDispatcher {
      * Swaps items between slots in the main inventory and hotbar (0-35).
      * @param violent If true, performs 6-10 swaps. If false, performs 3-5 swaps.
      */
-    private static void executeScramble(ServerPlayerEntity player, boolean violent) {
+    public static void executeScramble(ServerPlayerEntity player, boolean violent) {
         PlayerInventory inv = player.getInventory();
 
         // Gentle: 3-5 swaps. Violent: 6-10 swaps for absolute chaos.
@@ -127,6 +132,74 @@ public class ActionDispatcher {
                 Invissues.LOGGER.info("Threw {} out of {}'s inventory!", thrownItem.getItem().getName().getString(), player.getName().getString());
                 break;
             }
+        }
+    }
+
+    /**
+     * The "Dick Move": Swaps essential gear for junk when the player is dying.
+     */
+    public static void executeLowHealthSabotage(ServerPlayerEntity player) {
+        PlayerInventory inv = player.getInventory();
+
+        // Target the Chestplate (38) or Main Hand (selectedSlot)
+        int targetSlot = player.getRandom().nextBoolean() ? 38 : player.getInventory().selectedSlot;
+        ItemStack currentGear = inv.getStack(targetSlot);
+
+        if (currentGear.isEmpty()) return;
+
+        // Find some "junk" in the inventory to swap it with
+        int junkSlot = -1;
+        for (int i = 0; i < 36; i++) {
+            ItemStack s = inv.getStack(i);
+            if (!s.isEmpty() && (s.getItem().equals(Items.DIRT) || s.getItem().equals(Items.ROTTEN_FLESH) || s.getItem().equals(Items.POISONOUS_POTATO))) {
+                junkSlot = i;
+                break;
+            }
+        }
+
+        // If no junk found, just swap with a random empty-ish slot
+        if (junkSlot == -1) junkSlot = player.getRandom().nextInt(36);
+
+        // Perform the swap
+        ItemStack junk = inv.getStack(junkSlot);
+        inv.setStack(targetSlot, junk);
+        inv.setStack(junkSlot, currentGear);
+
+        player.currentScreenHandler.sendContentUpdates();
+        player.sendMessage(Text.literal("Oops... your hands slipped!").formatted(Formatting.ITALIC, Formatting.DARK_GRAY), true);
+        player.playSound(SoundEvents.ENTITY_WITCH_CELEBRATE, SoundCategory.PLAYERS, 1.0f, 1.2f);
+    }
+
+    /**
+     * Sends a fake packet to the client to display a valuable item.
+     */
+    public static void executePhantomItem(ServerPlayerEntity player) {
+        // Pick a fake item
+        ItemStack fakeStack = new ItemStack(player.getRandom().nextBoolean() ? Items.DIAMOND_BLOCK : Items.TOTEM_OF_UNDYING, 64);
+
+        // Find an empty slot
+        int fakeSlot = -1;
+        for (int i = 0; i < 36; i++) {
+            if (player.getInventory().getStack(i).isEmpty()) {
+                fakeSlot = i;
+                break;
+            }
+        }
+
+        if (fakeSlot != -1) {
+            // Send the lie to the client
+            // Slot IDs in the InventoryScreen start at 9 for the top-left of the main inv
+            // Converting PlayerInventory index to ScreenHandler index:
+            int screenSlot = (fakeSlot < 9) ? fakeSlot + 36 : fakeSlot;
+
+            player.networkHandler.sendPacket(new net.minecraft.network.packet.s2c.play.ScreenHandlerSlotUpdateS2CPacket(
+                    player.currentScreenHandler.syncId,
+                    player.currentScreenHandler.nextRevision(),
+                    screenSlot,
+                    fakeStack
+            ));
+
+            Invissues.LOGGER.info("Gaslighting {} with fake items in slot {}", player.getName().getString(), screenSlot);
         }
     }
 }
