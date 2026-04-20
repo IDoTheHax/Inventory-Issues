@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "id": "invissues",
+  "version": "${version}",
+  "name": "Inventory Issues",
+  "description": "Makes your inventory sentient, petty and mildly destructive. Good luck.",
+  "authors": [],
+  "contact": {},
+  "license": "All-Rights-Reserved",
+  "icon": "assets/invissues/icon.png",
+  "environment": "*",
+  "entrypoints": {
+    "client": [
+      "net.idothehax.invissues.client.InvissuesClient"
+    ],
+    "main": [
+      "net.idothehax.invissues.Invissues"
+    ]
+  },
+  "mixins": [
+    "invissues.mixins.json",
+    {
+      "config": "invissues.client.mixins.json",
+      "environment": "client"
+    }
+  ],
+  "depends": {
+    "fabricloader": ">=${loader_version}",
+    "fabric-api": "*",
+    "minecraft": "${minecraft_version}"
+  }
+}
