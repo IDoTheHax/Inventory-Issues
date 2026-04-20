@@ -21,6 +21,7 @@ public class SentientEngine {
                 if (!player.isAlive() || player.isSpectator()) continue;
 
                 HungerManager.tickHunger(player);
+                SortChallengeManager.tick(player);
 
                 // Grab the CCA component from the player
                 SentientComponent brain = ModComponents.SENTIENT_DATA.get(player);

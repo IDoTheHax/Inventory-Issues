@@ -18,4 +18,7 @@ public interface SentientComponent extends Component, AutoSyncedComponent {
     int getHungerTimer();
     void setHungerTimer(int ticks);
     void decrementHungerTimer();
+
+    int getSortTimer();
+    void setSortTimer(int ticks);
 }

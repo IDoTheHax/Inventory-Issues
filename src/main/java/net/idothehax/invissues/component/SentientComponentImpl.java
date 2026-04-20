@@ -11,6 +11,7 @@ public class SentientComponentImpl implements SentientComponent {
     private final PlayerEntity provider;
     private String hungerItem = null;
     private int hungerTimer = 0;
+    private int sortTimer = 0;
 
     public SentientComponentImpl(PlayerEntity provider) {
         this.provider = provider;
@@ -63,6 +64,12 @@ public class SentientComponentImpl implements SentientComponent {
         if (this.hungerTimer > 0) this.hungerTimer--;
     }
 
+    @Override
+    public int getSortTimer() { return this.sortTimer; }
+
+    @Override
+    public void setSortTimer(int ticks) { this.sortTimer = ticks; }
+
     // Update readFromNbt
     @Override
     public void readFromNbt(NbtCompound tag) {
@@ -71,6 +78,7 @@ public class SentientComponentImpl implements SentientComponent {
             this.cooldown = tag.getInt("SentientCooldown");
             this.hungerItem = tag.getString("HungerItem");
             this.hungerTimer = tag.getInt("HungerTimer");
+            this.sortTimer = tag.getInt("SortTimer");
         }
     }
 
@@ -81,5 +89,6 @@ public class SentientComponentImpl implements SentientComponent {
         tag.putInt("SentientCooldown", this.cooldown);
         tag.putString("HungerItem", this.hungerItem);
         tag.putInt("HungerTimer", this.hungerTimer);
+        tag.putInt("SortTimer", this.sortTimer);
     }
 }

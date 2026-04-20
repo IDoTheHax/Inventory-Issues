@@ -21,7 +21,13 @@ public class ActionDispatcher {
 
         if (mood <= 30) {
             // --- HIGH CHAOS (Hates you) ---
-            if (roll < 33) {
+            if (roll < 10) { // 10% chance for the Memory Game
+                executeMemoryGame(player);
+            } else if (roll < 15) { // 15% chance when mood is low to start the sort protocol
+                if (ModComponents.SENTIENT_DATA.get(player).getSortTimer() <= 0) {
+                    SortChallengeManager.startChallenge(player);
+                }
+            } else if (roll < 33) {
                 executeTantrumDrop(player);
             } else if (roll < 66) {
                 executeArmorStrip(player);
@@ -205,6 +211,9 @@ public class ActionDispatcher {
         }
     }
 
+    /**
+     * Trigger interface roulette where opening a block with GUI will give a random GUI that is NOT the intented GUI.
+     */
     public static void executeInterfaceRoulette(ServerPlayerEntity player, BlockPos pos) {
         int roll = player.getRandom().nextInt(3);
 
@@ -229,5 +238,78 @@ public class ActionDispatcher {
         }
 
         player.sendMessage(Text.literal("The inventory didn't want you to open that.").formatted(Formatting.ITALIC, Formatting.GRAY), true);
+    }
+
+    /**
+     * Triggers the memory game where the inventory briefly shows fake items, then scrambles. The player has to remember where their items are!
+     */
+    public static void executeMemoryGame(ServerPlayerEntity player) {
+        var server = player.getServer();
+        if (server == null) return;
+
+        // 1. Start the countdown with obfuscated "Memory" text
+        player.sendMessage(Text.literal("--- [")
+                .append(Text.literal("MEMORY").formatted(Formatting.OBFUSCATED))
+                .append(Text.literal("] PROTOCOL: 3 ---")).formatted(Formatting.DARK_PURPLE), true);
+        player.playSound(SoundEvents.BLOCK_NOTE_BLOCK_BIT.value(), SoundCategory.PLAYERS, 1.0f, 0.5f);
+
+        // 2. Schedule "2" (after 1 second / 20 ticks)
+        server.execute(() -> {
+            scheduleTask(server, 20, () -> {
+                player.sendMessage(Text.literal("--- [")
+                        .append(Text.literal("MEMORY").formatted(Formatting.OBFUSCATED))
+                        .append(Text.literal("] PROTOCOL: 2 ---")).formatted(Formatting.DARK_PURPLE), true);
+                player.playSound(SoundEvents.BLOCK_NOTE_BLOCK_BIT.value(), SoundCategory.PLAYERS, 1.0f, 0.7f);
+            });
+
+            // 3. Schedule "1" (after 2 seconds / 40 ticks)
+            scheduleTask(server, 40, () -> {
+                player.sendMessage(Text.literal("--- [")
+                        .append(Text.literal("MEMORY").formatted(Formatting.OBFUSCATED))
+                        .append(Text.literal("] PROTOCOL: 1 ---")).formatted(Formatting.DARK_PURPLE), true);
+                player.playSound(SoundEvents.BLOCK_NOTE_BLOCK_BIT.value(), SoundCategory.PLAYERS, 1.0f, 1.0f);
+            });
+
+            // 4. THE BLINDING (after 3 seconds / 60 ticks)
+            scheduleTask(server, 60, () -> {
+                // Hide everything
+                for (int i = 0; i < 46; i++) {
+                    player.networkHandler.sendPacket(new net.minecraft.network.packet.s2c.play.ScreenHandlerSlotUpdateS2CPacket(
+                            player.currentScreenHandler.syncId,
+                            player.currentScreenHandler.nextRevision(),
+                            i,
+                            new ItemStack(Items.BARRIER)
+                    ));
+                }
+
+                // Perform the secret swap
+                executeScramble(player, false);
+
+                player.playSound(SoundEvents.ENTITY_ILLUSIONER_MIRROR_MOVE, SoundCategory.PLAYERS, 1.0f, 0.5f);
+                player.sendMessage(Text.literal("WHERE IS YOUR GEAR NOW?").formatted(Formatting.OBFUSCATED, Formatting.RED), true);
+            });
+
+            // 5. THE REVEAL (after 8 seconds / 160 ticks total)
+            scheduleTask(server, 160, () -> {
+                player.currentScreenHandler.sendContentUpdates();
+                player.playSound(SoundEvents.ENTITY_ENDERMAN_STARE, SoundCategory.PLAYERS, 1.0f, 0.5f);
+                player.sendMessage(Text.literal("Truth restored... for now.").formatted(Formatting.GRAY, Formatting.ITALIC), false);
+            });
+        });
+    }
+
+    /**
+     * Helper to handle delayed tasks without freezing the server.
+     */
+    private static void scheduleTask(net.minecraft.server.MinecraftServer server, int delayTicks, Runnable task) {
+        long executeTime = server.getTicks() + delayTicks;
+        server.execute(() -> {
+            // This is a simple way to wait for a specific tick
+            if (server.getTicks() < executeTime) {
+                scheduleTask(server, 0, task); // Re-queue if not time yet
+            } else {
+                task.run();
+            }
+        });
     }
 }
