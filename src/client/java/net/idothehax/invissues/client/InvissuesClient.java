@@ -49,6 +49,23 @@ public class InvissuesClient implements ClientModInitializer {
                 // We draw the raw color fill exactly inside the 1-pixel borders (x + 1, y + 1)
                 drawContext.fill(x + 1, y + 1, x + 1 + fillWidth, y + 4, currentColor);
             }
+
+            // --- THE "TRIP" SCREEN TINT (Add this inside HudRenderCallback, below the bar code) ---
+            if (mood < 10) {
+                // Pulse the alpha (transparency) using a sine wave so it throbs smoothly
+                float alpha = 0.15f + 0.25f * (float) ((Math.sin(System.currentTimeMillis() / 150.0) + 1.0) / 2.0);
+
+                // If mood hits 0, the flashing becomes erratic, dark, and violent
+                if (mood <= 0) {
+                    alpha = 0.3f + 0.5f * client.player.getRandom().nextFloat();
+                }
+
+                int alphaInt = (int) (alpha * 255);
+                int purpleColor = (alphaInt << 24) | 0x800080; // Hex 800080 is pure purple
+
+                // Draw the tint over the ENTIRE screen
+                drawContext.fill(0, 0, screenWidth, screenHeight, purpleColor);
+            }
         });
     }
 

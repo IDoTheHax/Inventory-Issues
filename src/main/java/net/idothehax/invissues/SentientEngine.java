@@ -72,8 +72,7 @@ public class SentientEngine {
                 }
 
                 if (mood <= 0 && player.isDead()) {
-                    brain.modifyMood(50); // Reset the mood after death so they have a chance to recover and play again
-                    continue;
+                    brain.setMood(50); // Reset the mood after death so they have a chance to recover and play again
                 }
 
                 // Memory Game Check - If the player has an active memory game and is looking at their normal inventory, punish them for trying to escape
