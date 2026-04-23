@@ -3,8 +3,11 @@ package net.idothehax.invissues;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.idothehax.invissues.component.SentientComponent;
 import net.idothehax.invissues.registry.ModComponents;
+import net.minecraft.entity.effect.StatusEffectInstance;
+import net.minecraft.entity.effect.StatusEffects;
 import net.minecraft.item.ItemStack;
 import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.sound.SoundCategory;
 import net.minecraft.sound.SoundEvents;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
@@ -25,10 +28,52 @@ public class SentientEngine {
 
                 // Grab the CCA component from the player
                 SentientComponent brain = ModComponents.SENTIENT_DATA.get(player);
+                int mood = brain.getMood();
+
+                // -----------------------------------------------------
+                // THE TRIP & THE DEATH (Mood < 10)
+                // We check every 20 ticks (1 second) so we don't spam the server
+                // -----------------------------------------------------
+                if (server.getTicks() % 20 == 0) {
+
+                    // 1. THE TRIP (Mood between 0 and 9)
+                    if (mood < 10) {
+                        // Apply Nausea for 15 seconds (keeps the screen constantly wobbling)
+                        player.addStatusEffect(new StatusEffectInstance(StatusEffects.NAUSEA, 300, 0, false, false, false));
+
+                        // Randomly play creepy ambient cave noises directly into their ears
+                        if (player.getRandom().nextFloat() < 0.15f) {
+                            player.playSound(SoundEvents.AMBIENT_CAVE.value(), SoundCategory.AMBIENT, 1.0f, 0.5f);
+                        }
+                    }
+
+                    // 2. THE DEATH (Mood == 0)
+                    if (mood <= 0) {
+                        // Add Darkness to make it absolutely terrifying
+                        player.addStatusEffect(new StatusEffectInstance(StatusEffects.DARKNESS, 60, 0, false, false, false));
+
+                        // Deal 1 Heart (2.0f) of Magic Damage every 2 seconds (so we check % 40)
+                        if (server.getTicks() % 40 == 0) {
+                            // .magic() bypasses normal armor
+                            player.damage(player.getDamageSources().magic(), 2.0f);
+
+                            // Occasional creepy chat message
+                            if (player.getRandom().nextFloat() < 0.3f) {
+                                player.sendMessage(Text.literal("Your gear is consuming your life force...")
+                                        .formatted(Formatting.DARK_RED, Formatting.ITALIC), true);
+                            }
+                        }
+                    }
+                }
 
                 if (brain.getCooldown() > 0) {
                     brain.decrementCooldown();
                     continue; // Skip to the next player
+                }
+
+                if (mood <= 0 && player.isDead()) {
+                    brain.modifyMood(50); // Reset the mood after death so they have a chance to recover and play again
+                    continue;
                 }
 
                 // Memory Game Check - If the player has an active memory game and is looking at their normal inventory, punish them for trying to escape
