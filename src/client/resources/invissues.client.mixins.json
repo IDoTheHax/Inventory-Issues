@@ -4,6 +4,7 @@
   "package": "net.idothehax.invissues.client.mixin",
   "compatibilityLevel": "JAVA_17",
   "client": [
+    "DeathScreenMixin",
     "EntityGlitchMixin",
     "HudShiftMixin",
     "InventoryGlitchMixin"

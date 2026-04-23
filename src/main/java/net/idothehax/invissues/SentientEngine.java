@@ -1,5 +1,6 @@
 package net.idothehax.invissues;
 
+import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.idothehax.invissues.component.SentientComponent;
 import net.idothehax.invissues.registry.ModComponents;
@@ -71,10 +72,6 @@ public class SentientEngine {
                     continue; // Skip to the next player
                 }
 
-                if (mood <= 0 && player.isDead()) {
-                    brain.setMood(50); // Reset the mood after death so they have a chance to recover and play again
-                }
-
                 // Memory Game Check - If the player has an active memory game and is looking at their normal inventory, punish them for trying to escape
                 if (brain.getMemoryGameState() > 0) {
                     // If they closed the UI by hitting ESC, currentScreenHandler reverts to playerScreenHandler
@@ -110,6 +107,14 @@ public class SentientEngine {
                 // Trigger the behavior using the saved mood
                 ActionDispatcher.triggerAction(player, brain.getMood());
             }
+        });
+
+        ServerPlayerEvents.AFTER_RESPAWN.register((oldPlayer, newPlayer, alive) -> {
+            var brain = ModComponents.SENTIENT_DATA.get(newPlayer);
+
+            // Give them a fresh start
+            brain.setMood(50);
+            brain.setMemoryGameState(0); // Failsafe in case they died mid-game
         });
     }
 }

@@ -6,9 +6,9 @@
   "mixins": [
     "BlockInteractionMixin",
     "CraftingMixin",
+    "DeathMessageMixin",
     "PlayerMoodMixin"
   ],
-
   "injectors": {
     "defaultRequire": 1
   },
