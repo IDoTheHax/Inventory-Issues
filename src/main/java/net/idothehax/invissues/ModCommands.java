@@ -14,6 +14,7 @@ public class ModCommands {
     public static void register() {
         CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> {
             registerMoodCommand(dispatcher);
+            TestMemoryCommand.register(dispatcher);
         });
     }
 

@@ -1,6 +1,7 @@
 package net.idothehax.invissues;
 
 import net.idothehax.invissues.registry.ModComponents;
+import net.minecraft.inventory.SimpleInventory;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
 import net.minecraft.screen.*;
@@ -15,24 +16,32 @@ import net.minecraft.util.math.BlockPos;
 public class ActionDispatcher {
 
     public static void triggerAction(ServerPlayerEntity player, int mood) {
+        var data = ModComponents.SENTIENT_DATA.get(player);
+
+        // SAFETY LOCK: Do not trigger random chaos if a minigame is actively running
+        if (data.getMemoryGameState() > 0 || data.getSortTimer() > 0) {
+            return;
+        }
+
         int roll = player.getRandom().nextInt(100);
 
-        Invissues.LOGGER.info("{}'s inventory is acting up. Mood: {}, Roll: {}", player.getName().getString(), mood, roll);
-
         if (mood <= 30) {
-            // --- HIGH CHAOS (Hates you) ---
-            if (roll < 10) { // 10% chance for the Memory Game
+            // --- HIGH CHAOS ---
+            Invissues.LOGGER.info("High chaos mode, roll: {}", roll);
+            // We prioritize the unique games over the basic scramble
+            if (roll < 20) {
+                Invissues.LOGGER.info("Triggering memory game for {}", player.getName().getString());
                 executeMemoryGame(player);
-            } else if (roll < 15) { // 15% chance when mood is low to start the sort protocol
+            } else if (roll < 40) {
                 if (ModComponents.SENTIENT_DATA.get(player).getSortTimer() <= 0) {
                     SortChallengeManager.startChallenge(player);
+                } else {
+                    executeTantrumDrop(player); // Failsafe
                 }
-            } else if (roll < 33) {
-                executeTantrumDrop(player);
-            } else if (roll < 66) {
+            } else if (roll < 60) {
                 executeArmorStrip(player);
             } else {
-                executeScramble(player, true); // Violent scramble (many swaps)
+                executeScramble(player, true);
             }
         } else if (mood <= 70) {
             // --- ANNOYED / NEUTRAL ---
@@ -120,7 +129,7 @@ public class ActionDispatcher {
     /**
      * Grabs a random item from the player's inventory and throws it on the ground.
      */
-    private static void executeTantrumDrop(ServerPlayerEntity player) {
+    public static void executeTantrumDrop(ServerPlayerEntity player) {
         PlayerInventory inv = player.getInventory();
 
         // Find a random non-empty slot in the hotbar/main inventory (0-35)
@@ -212,7 +221,7 @@ public class ActionDispatcher {
     }
 
     /**
-     * Trigger interface roulette where opening a block with GUI will give a random GUI that is NOT the intented GUI.
+     * Trigger interface roulette where opening a block with GUI will give a random GUI that is NOT the intended GUI.
      */
     public static void executeInterfaceRoulette(ServerPlayerEntity player, BlockPos pos) {
         int roll = player.getRandom().nextInt(3);
@@ -241,75 +250,148 @@ public class ActionDispatcher {
     }
 
     /**
-     * Triggers the memory game where the inventory briefly shows fake items, then scrambles. The player has to remember where their items are!
+     * Triggers the memory game where the inventory briefly shows an item, shuffles it,
+     * then the player must click the correct slot to win.
      */
     public static void executeMemoryGame(ServerPlayerEntity player) {
-        var server = player.getServer();
-        if (server == null) return;
+        Invissues.LOGGER.info("executeMemoryGame called for player: {}", player.getName().getString());
 
-        // 1. Start the countdown with obfuscated "Memory" text
-        player.sendMessage(Text.literal("--- [")
-                .append(Text.literal("MEMORY").formatted(Formatting.OBFUSCATED))
-                .append(Text.literal("] PROTOCOL: 3 ---")).formatted(Formatting.DARK_PURPLE), true);
-        player.playSound(SoundEvents.BLOCK_NOTE_BLOCK_BIT.value(), SoundCategory.PLAYERS, 1.0f, 0.5f);
+        var data = ModComponents.SENTIENT_DATA.get(player);
 
-        // 2. Schedule "2" (after 1 second / 20 ticks)
-        server.execute(() -> {
-            scheduleTask(server, 20, () -> {
-                player.sendMessage(Text.literal("--- [")
-                        .append(Text.literal("MEMORY").formatted(Formatting.OBFUSCATED))
-                        .append(Text.literal("] PROTOCOL: 2 ---")).formatted(Formatting.DARK_PURPLE), true);
-                player.playSound(SoundEvents.BLOCK_NOTE_BLOCK_BIT.value(), SoundCategory.PLAYERS, 1.0f, 0.7f);
-            });
+        // --- PHASE 0: THE WARNING ---
+        player.sendMessage(Text.literal("⚠ MEMORY PROTOCOL IMMINENT ⚠").formatted(Formatting.DARK_RED, Formatting.BOLD), true);
+        player.sendMessage(Text.literal("PREPARE YOURSELF. 5 SECONDS.").formatted(Formatting.RED), false);
+        player.playSound(SoundEvents.ENTITY_WITHER_AMBIENT, SoundCategory.PLAYERS, 1.0f, 1.0f);
 
-            // 3. Schedule "1" (after 2 seconds / 40 ticks)
-            scheduleTask(server, 40, () -> {
-                player.sendMessage(Text.literal("--- [")
-                        .append(Text.literal("MEMORY").formatted(Formatting.OBFUSCATED))
-                        .append(Text.literal("] PROTOCOL: 1 ---")).formatted(Formatting.DARK_PURPLE), true);
-                player.playSound(SoundEvents.BLOCK_NOTE_BLOCK_BIT.value(), SoundCategory.PLAYERS, 1.0f, 1.0f);
-            });
+        Invissues.LOGGER.info("Memory game warning sent, scheduling phase 1...");
 
-            // 4. THE BLINDING (after 3 seconds / 60 ticks)
-            scheduleTask(server, 60, () -> {
-                // Hide everything
-                for (int i = 0; i < 46; i++) {
-                    player.networkHandler.sendPacket(new net.minecraft.network.packet.s2c.play.ScreenHandlerSlotUpdateS2CPacket(
-                            player.currentScreenHandler.syncId,
-                            player.currentScreenHandler.nextRevision(),
-                            i,
-                            new ItemStack(Items.BARRIER)
-                    ));
+        // Wait 5 seconds before starting
+        TaskScheduler.schedule(100, () -> {
+            Invissues.LOGGER.info("Phase 1 executing - checking player state...");
+            if (player.isDisconnected() || !player.isAlive()) {
+                Invissues.LOGGER.warn("Player disconnected or dead, aborting memory game");
+                return;
+            }
+
+            Invissues.LOGGER.info("Setting up memory game board...");
+
+            // --- PHASE 1: SETUP ---
+            data.setMemoryGameState(1); // Lock the game (state 1 = shuffling)
+
+            // Create the game board with glass panes
+            SimpleInventory gameBoard = new SimpleInventory(27);
+            ItemStack glass = new ItemStack(net.minecraft.item.Items.GRAY_STAINED_GLASS_PANE);
+            glass.setCustomName(Text.literal("???").formatted(Formatting.GRAY));
+
+            for (int i = 0; i < 27; i++) {
+                gameBoard.setStack(i, glass.copy());
+            }
+
+            // Pick the target item (what they're looking for)
+            ItemStack targetItem = player.getMainHandStack().copy();
+            if (targetItem.isEmpty() || targetItem.getItem() == net.minecraft.item.Items.GRAY_STAINED_GLASS_PANE) {
+                targetItem = new ItemStack(net.minecraft.item.Items.DIAMOND);
+            }
+            targetItem.setCustomName(Text.literal("FIND ME!").formatted(Formatting.GOLD, Formatting.BOLD));
+
+            // Pick a random winning slot
+            int winningSlot = player.getRandom().nextInt(27);
+            data.setMemoryTargetSlot(winningSlot);
+
+            final ItemStack finalTarget = targetItem;
+
+            // Open the custom screen handler
+            player.openHandledScreen(new SimpleNamedScreenHandlerFactory(
+                    (syncId, inv, p) -> new MemoryGameScreenHandler(syncId, inv, gameBoard),
+                    Text.literal("MEMORY PROTOCOL").formatted(Formatting.DARK_PURPLE, Formatting.BOLD)
+            ));
+
+            Invissues.LOGGER.info("Memory game screen opened for {}", player.getName().getString());
+
+            // --- PHASE 2: INITIAL REVEAL (Show the item for 2 seconds) ---
+            TaskScheduler.schedule(20, () -> {
+                Invissues.LOGGER.info("Phase 2 executing - revealing item...");
+                if (data.getMemoryGameState() == 0) {
+                    Invissues.LOGGER.warn("Game state is 0, aborting reveal");
+                    return;
                 }
 
-                // Perform the secret swap
-                executeScramble(player, false);
-
-                player.playSound(SoundEvents.ENTITY_ILLUSIONER_MIRROR_MOVE, SoundCategory.PLAYERS, 1.0f, 0.5f);
-                player.sendMessage(Text.literal("WHERE IS YOUR GEAR NOW?").formatted(Formatting.OBFUSCATED, Formatting.RED), true);
-            });
-
-            // 5. THE REVEAL (after 8 seconds / 160 ticks total)
-            scheduleTask(server, 160, () -> {
+                gameBoard.setStack(winningSlot, finalTarget);
                 player.currentScreenHandler.sendContentUpdates();
-                player.playSound(SoundEvents.ENTITY_ENDERMAN_STARE, SoundCategory.PLAYERS, 1.0f, 0.5f);
-                player.sendMessage(Text.literal("Truth restored... for now.").formatted(Formatting.GRAY, Formatting.ITALIC), false);
-            });
-        });
-    }
 
-    /**
-     * Helper to handle delayed tasks without freezing the server.
-     */
-    private static void scheduleTask(net.minecraft.server.MinecraftServer server, int delayTicks, Runnable task) {
-        long executeTime = server.getTicks() + delayTicks;
-        server.execute(() -> {
-            // This is a simple way to wait for a specific tick
-            if (server.getTicks() < executeTime) {
-                scheduleTask(server, 0, task); // Re-queue if not time yet
-            } else {
-                task.run();
+                player.playSound(SoundEvents.BLOCK_NOTE_BLOCK_PLING.value(), SoundCategory.PLAYERS, 1.0f, 2.0f);
+                player.sendMessage(Text.literal("MEMORIZE THIS LOCATION!").formatted(Formatting.GOLD, Formatting.BOLD), true);
+            });
+
+            // --- PHASE 3: SHUFFLE ANIMATION (5 shuffles over 2.5 seconds) ---
+            for (int shuffleIndex = 0; shuffleIndex < 5; shuffleIndex++) {
+                final int index = shuffleIndex;
+                TaskScheduler.schedule(60 + (index * 10), () -> {
+                    if (data.getMemoryGameState() == 0) return;
+
+                    // Clear all slots
+                    for (int j = 0; j < 27; j++) {
+                        gameBoard.setStack(j, glass.copy());
+                    }
+
+                    // Show the item in a random slot (fake shuffle)
+                    int fakeSlot = player.getRandom().nextInt(27);
+                    gameBoard.setStack(fakeSlot, finalTarget.copy());
+
+                    player.currentScreenHandler.sendContentUpdates();
+                    player.playSound(SoundEvents.BLOCK_NOTE_BLOCK_HAT.value(), SoundCategory.PLAYERS, 0.7f, 1.5f + (index * 0.15f));
+                });
             }
+
+            // --- CRITICAL: Reset item to correct slot after shuffle animation ---
+            TaskScheduler.schedule(115, () -> {
+                if (data.getMemoryGameState() == 0) return;
+
+                // Clear everything and put item back in the REAL winning slot
+                for (int j = 0; j < 27; j++) {
+                    gameBoard.setStack(j, glass.copy());
+                }
+                gameBoard.setStack(winningSlot, finalTarget.copy());
+                player.currentScreenHandler.sendContentUpdates();
+
+                Invissues.LOGGER.info("Item reset to winning slot {} before hiding", winningSlot);
+            });
+
+            // --- PHASE 4: HIDE AND GUESS (After shuffling, hide everything) ---
+            TaskScheduler.schedule(120, () -> {
+                if (data.getMemoryGameState() == 0) return;
+
+                // Hide everything with question mark glass
+                ItemStack questionGlass = new ItemStack(net.minecraft.item.Items.GRAY_STAINED_GLASS_PANE);
+                questionGlass.setCustomName(Text.literal("?").formatted(Formatting.YELLOW));
+
+                for (int j = 0; j < 27; j++) {
+                    gameBoard.setStack(j, questionGlass.copy());
+                }
+
+                data.setMemoryGameState(2); // State 2 = Guessing phase (clicks are now active)
+                player.currentScreenHandler.sendContentUpdates();
+
+                player.playSound(SoundEvents.ENTITY_ENDERMAN_STARE, SoundCategory.PLAYERS, 1.0f, 0.5f);
+                player.sendMessage(Text.literal("CLICK THE CORRECT SLOT!").formatted(Formatting.RED, Formatting.BOLD), true);
+                player.sendMessage(Text.literal("(You have 10 seconds)").formatted(Formatting.GRAY), false);
+            });
+
+            // --- PHASE 5: TIMEOUT (If they don't click within 10 seconds, they lose) ---
+            TaskScheduler.schedule(320, () -> {
+                if (data.getMemoryGameState() != 2) return; // Already finished
+
+                // Time's up!
+                data.setMemoryGameState(0);
+                data.modifyMood(-8);
+
+                player.closeHandledScreen();
+                player.sendMessage(Text.literal("⏱ TIME'S UP! -8 MOOD").formatted(Formatting.DARK_RED, Formatting.BOLD), false);
+                player.playSound(SoundEvents.ENTITY_VILLAGER_NO, SoundCategory.PLAYERS, 1.0f, 0.5f);
+
+                ActionDispatcher.executeScramble(player, true);
+                Invissues.LOGGER.info("{} timed out on the memory game", player.getName().getString());
+            });
         });
     }
 }

@@ -16,6 +16,7 @@ public class Invissues implements ModInitializer {
         // Registry registration
         ModCommands.register();
         SentientEngine.register();
+        TaskScheduler.init();
 
         // TRIGGER: Killing a Mob
         ServerEntityCombatEvents.AFTER_KILLED_OTHER_ENTITY.register((world, entity, killedEntity) -> {

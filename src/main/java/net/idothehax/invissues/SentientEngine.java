@@ -31,6 +31,17 @@ public class SentientEngine {
                     continue; // Skip to the next player
                 }
 
+                // Memory Game Check - If the player has an active memory game and is looking at their normal inventory, punish them for trying to escape
+                if (brain.getMemoryGameState() > 0) {
+                    // If they closed the UI by hitting ESC, currentScreenHandler reverts to playerScreenHandler
+                    if (player.currentScreenHandler == player.playerScreenHandler) {
+                        brain.setMemoryGameState(0);
+                        brain.modifyMood(-40);
+                        ActionDispatcher.executeTantrumDrop(player);
+                        player.sendMessage(Text.literal("COWARD. YOU CANNOT ESCAPE THE GAME.").formatted(Formatting.DARK_RED, Formatting.BOLD), false);
+                    }
+                }
+
                 // TRIGGER: Item Rejection
                 if (brain.getMood() < 25) {
                     ItemStack mainHand = player.getMainHandStack();

@@ -21,4 +21,18 @@ public interface SentientComponent extends Component, AutoSyncedComponent {
 
     int getSortTimer();
     void setSortTimer(int ticks);
+
+    boolean isInventoryLocked();
+    void setInventoryLocked(boolean locked);
+
+    int targetSlot = -1;
+    int getTargetSlot();
+    void setTargetSlot(int slot);
+
+    // Memory game Interface
+    int getMemoryGameState(); // 0 = Off, 1 = Shuffling (No Clicking), 2 = Guessing Phase
+    void setMemoryGameState(int state);
+
+    int getMemoryTargetSlot();
+    void setMemoryTargetSlot(int slot);
 }

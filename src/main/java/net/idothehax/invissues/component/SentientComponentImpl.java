@@ -12,6 +12,10 @@ public class SentientComponentImpl implements SentientComponent {
     private String hungerItem = null;
     private int hungerTimer = 0;
     private int sortTimer = 0;
+    private boolean inventoryLocked = false;
+    private int targetSlot = -1;
+    private int memoryGameState = 0;
+    private int memoryTargetSlot = -1;
 
     public SentientComponentImpl(PlayerEntity provider) {
         this.provider = provider;
@@ -70,6 +74,43 @@ public class SentientComponentImpl implements SentientComponent {
     @Override
     public void setSortTimer(int ticks) { this.sortTimer = ticks; }
 
+    @Override
+    public boolean isInventoryLocked() { return this.inventoryLocked; }
+
+    @Override
+    public void setInventoryLocked(boolean locked) {
+        this.inventoryLocked = locked;
+        ModComponents.SENTIENT_DATA.sync(this.provider); // Sync to client
+    }
+
+    @Override
+    public int getTargetSlot() { return this.targetSlot; }
+
+    @Override
+    public void setTargetSlot(int slot) { this.targetSlot = slot; }
+
+    @Override
+    public int getMemoryGameState() {
+        return this.memoryGameState;
+    }
+
+    @Override
+    public void setMemoryGameState(int state) {
+        this.memoryGameState = state;
+        ModComponents.SENTIENT_DATA.sync(this.provider);
+    }
+
+    @Override
+    public int getMemoryTargetSlot() {
+        return this.memoryTargetSlot;
+    }
+
+    @Override
+    public void setMemoryTargetSlot(int slot) {
+        this.memoryTargetSlot = slot;
+        ModComponents.SENTIENT_DATA.sync(this.provider);
+    }
+
     // Update readFromNbt
     @Override
     public void readFromNbt(NbtCompound tag) {
@@ -79,6 +120,9 @@ public class SentientComponentImpl implements SentientComponent {
             this.hungerItem = tag.getString("HungerItem");
             this.hungerTimer = tag.getInt("HungerTimer");
             this.sortTimer = tag.getInt("SortTimer");
+            this.inventoryLocked = tag.getBoolean("InventoryLocked");
+            this.memoryGameState = tag.getInt("MemoryGameState");
+            this.memoryTargetSlot = tag.getInt("MemoryTargetSlot");
         }
     }
 
@@ -90,5 +134,8 @@ public class SentientComponentImpl implements SentientComponent {
         tag.putString("HungerItem", this.hungerItem);
         tag.putInt("HungerTimer", this.hungerTimer);
         tag.putInt("SortTimer", this.sortTimer);
+        tag.putBoolean("InventoryLocked", this.inventoryLocked);
+        tag.putInt("MemoryGameState", this.memoryGameState);
+        tag.putInt("MemoryTargetSlot", this.memoryTargetSlot);
     }
 }
