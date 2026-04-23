@@ -1,9 +1,10 @@
 {
   "required": true,
   "minVersion": "0.8",
-  "package": "net.idothehax.invissues.mixin.client",
+  "package": "net.idothehax.invissues.client.mixin",
   "compatibilityLevel": "JAVA_17",
   "client": [
+    "HudShiftMixin"
   ],
   "injectors": {
     "defaultRequire": 1
