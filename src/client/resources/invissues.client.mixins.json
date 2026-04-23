@@ -7,12 +7,16 @@
     "DeathScreenMixin",
     "EntityGlitchMixin",
     "HudShiftMixin",
-    "InventoryGlitchMixin"
+    "InventoryGlitchMixin",
+    "SlotBounceMixin"
   ],
   "injectors": {
     "defaultRequire": 1
   },
   "overwrites": {
     "requireAnnotations": true
-  }
+  },
+  "mixins": [
+    "SlotMixin"
+  ]
 }

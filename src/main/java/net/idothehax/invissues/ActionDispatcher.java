@@ -18,8 +18,15 @@ public class ActionDispatcher {
     public static void triggerAction(ServerPlayerEntity player, int mood) {
         var data = ModComponents.SENTIENT_DATA.get(player);
 
-        // SAFETY LOCK: Do not trigger random chaos if a minigame is actively running
+        // SAFETY LOCK 1: Do not trigger anything new if a minigame is actively running
         if (data.getMemoryGameState() > 0 || data.getSortTimer() > 0) {
+            return;
+        }
+
+        // SAFETY LOCK 2: Do not trigger organized minigames (Memory/Sort) if in the DVD/Horror phase
+        if (mood < 20) {
+            // The inventory is too angry to play games. Just throw an item instead.
+            ActionDispatcher.executeTantrumDrop(player);
             return;
         }
 
